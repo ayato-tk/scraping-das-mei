@@ -11,20 +11,28 @@ No **modo interativo** uma página da web é aberta no Google Chrome e todos os 
 
 No **modo background** todas as etapas de raspagem do modo interativo são executadas, mas sem abrir a página do navegador. A interação é feita através do acesso direto as API's do Google Chrome. No modo background existem etapas adicional ao modo interativo. Após fazer o download do Documento de Arrecadação do Simples Nacional MEI, este aquivo é aberto para leitura do código de barra para extração do código digitável. Após a extração do código digitável é adicionado o DAC (Dígito de Auto-Conferência) do módulo 11 da [Febraban](https://cmsarquivos.febraban.org.br/Arquivos/documentos/PDF/Layout%20-%20C%C3%B3digo%20de%20Barras%20ATUALIZADO.pdf). No final do processo o código digitável é impresso no console do terminal.
 
-## Etapas Anterior a Raspagem
+## Etapas Anteriores à Raspagem
 
-O site da Receita Federal usa mecanismos de detecção de robôs e para o aplicativo não ser identificado como robô é usado o plugin *puppeteer-extra-plugin-stealth*.
+O site da Receita Federal usa mecanismos robustos de detecção de robôs. Para garantir o funcionamento, o aplicativo utiliza:
+- **ReBrowser Patches**: Para evitar detecção de automação no motor do navegador.
+- **Stealth Adptativo**: Identificadores de navegador (User-Agent) e dimensões de tela que se adaptam ao seu sistema operacional (Windows, Linux ou macOS).
+- **Bloqueador de Anúncios**: Uso do `puppeteer-extra-plugin-adblocker` para acelerar o carregamento.
 
-Para acelerar a raspagem é usado também o plugins *puppeteer-extra-plugin-adblocker* que bloqueia possíveis anúncios no site.
+## Otimizações de Performance
+
+Este projeto foi otimizado para máxima velocidade nas etapas pós-autenticação:
+- **Transição Instantânea**: O robô reage imediatamente à resposta do servidor, eliminando tempos de espera fixos.
+- **Polling Ativo**: Detecção de botões e links via monitoramento constante do DOM, garantindo o clique no primeiro milissegundo de visibilidade.
+- **Estratégia de Download Inteligente**: Monitoramento por tempo de modificação de arquivo (mtime), permitindo capturar o download corretamente mesmo que o arquivo já exista ou seja renomeado.
 
 ## Etapas da Raspagem
 
-**Etapa 1** - Abrir o site da Receita Federal  
-**Etapa 2** - Preencher o campo CNPJ  
-**Etapa 3** - Selecione e clique no menu "Emitir Guia de Pagamento (DAS)"  
-**Fase 4** - Selecione o ano caledário  
-**Fase 5** - Selecione o mês caledário  
-**Etapa 6** - Selecione e clique no botão "Imprimir/Visualizar PDF"  
+**Etapa 1** - Acesso ao PGMEI  
+**Etapa 2** - Preenchimento do CNPJ e submissão  
+**Etapa 3** - Navegação instantânea para "Emitir Guia de Pagamento (DAS)"  
+**Etapa 4** - Seleção reativa do ano calendário  
+**Etapa 5** - Seleção do mês e emissão  
+**Etapa 6** - Clique otimizado no botão "Imprimir/Visualizar PDF"  
 
 ### Etapa Adicional no Modo Background
 

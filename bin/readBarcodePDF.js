@@ -42,8 +42,8 @@ function readBarcodePDF(header) {
       const filename = header["content-disposition"].replace(
         "attachment; filename=",
         ""
-      );
-      const filePath = new URL(`file:///${downloadPath + "/" + filename}`).href;
+      ).replace(/"/g, '');
+      const filePath = `${downloadPath}/${filename}`;
       PDFBarcodeJs.decodeSinglePage(filePath, 1, configs, (response) => {
         const barcode = response.codes[0];
         const barcodeWithDAC = addDac(barcode);
