@@ -43,17 +43,21 @@ Este projeto foi otimizado para máxima velocidade nas etapas pós-autenticaçã
 ## Instalação e Execução
 
 ```
-$ git clone https://github.com/engmsilva/scraping-das-mei.git
-$ cd scraping-das-mei
-$ npm install
-$ npm start
+git clone https://github.com/engmsilva/scraping-das-mei.git
+cd scraping-das-mei
+npm install
+npm start
 
 ? Usar modo interativo (headless off)?
 ? Informe o CNPJ:
 ? Informe o ano:
-? Informe o mês:
+? Informe o mês inicial: 01
+? Informe o mês final: 08
 ```
 **nota:** defina o valor da variável de ambiente `DEFAULT_CNPJ_INPUT` no arquivo `.env` para carregar um número padrão para o CNPJ.
+
+Todos os meses do intervalo são selecionados de forma inclusiva. Por exemplo,
+`01` até `08` gera um único PDF contendo as guias de janeiro a agosto.
 
 ## Envio do Código de Barra da Guia de Arrecadação do DAS por SMS
 

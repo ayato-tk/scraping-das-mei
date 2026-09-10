@@ -2,9 +2,10 @@ import { PDFBarcodeJs } from "pdf-barcode";
 import { logger } from './loggers.js';
 import { addDac } from "./addDAC.js";
 import { sendSMS } from "./sendSMS.js";
+import path from "path";
 
 // path to save the DAS tab
-const downloadPath = process.cwd() + "/bin";
+const downloadPath = path.join(process.cwd(), "bin");
 
 const configs = {
   scale: {
@@ -43,12 +44,18 @@ function readBarcodePDF(header) {
         "attachment; filename=",
         ""
       ).replace(/"/g, '');
-      const filePath = `${downloadPath}/${filename}`;
-      PDFBarcodeJs.decodeSinglePage(filePath, 1, configs, (response) => {
-        const barcode = response.codes[0];
-        const barcodeWithDAC = addDac(barcode);
-        sendSMS(barcodeWithDAC);
-        logger.info(`Barcode: ${barcodeWithDAC}`);
+      const filePath = path.join(downloadPath, filename);
+      PDFBarcodeJs.decodeDocument(filePath, configs, (response) => {
+        if (!response.success || response.codes.length === 0) {
+          logger.warn(`Nenhum código de barras encontrado em ${filename}.`);
+          return;
+        }
+
+        response.codesDetailed.forEach(({ code, page }) => {
+          const barcodeWithDAC = addDac(code);
+          sendSMS(barcodeWithDAC);
+          logger.info(`Barcode (página ${page}): ${barcodeWithDAC}`);
+        });
       });
     }
   }

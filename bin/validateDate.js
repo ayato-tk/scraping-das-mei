@@ -22,14 +22,16 @@ function validateYear(year) {
 }
 
 function validateMonth(month) {
-  // check if the input month is a string containing only numbers
-  if(!/^\d+$/.test(month)) return [false, 'Por favor, digite um número.'];
+  const normalizedMonth = month.toString().trim();
 
-  // check if the month has 2 digits
-  if(month.length !== 2) return [false, 'O ano precisa conter 2 dígitos.'];
+  // check if the input month is a string containing only numbers
+  if(!/^\d+$/.test(normalizedMonth)) return [false, 'Por favor, digite um número.'];
+
+  // accepts both "8" and "08"
+  if(normalizedMonth.length > 2) return [false, 'O mês precisa conter no máximo 2 dígitos.'];
 
   // check if the month is within the allowed range
-  if(parseInt(month, 10) < 1 || parseInt(month, 10) > 12) return [false, 'O valor digitado não é um mês válido.'];
+  if(parseInt(normalizedMonth, 10) < 1 || parseInt(normalizedMonth, 10) > 12) return [false, 'O valor digitado não é um mês válido.'];
 
   return [true];
 
@@ -37,4 +39,14 @@ function validateMonth(month) {
 
 }
 
-export { validateYear, validateMonth };
+function createMonthRange(startMonth, endMonth) {
+  const start = parseInt(startMonth, 10);
+  const end = parseInt(endMonth, 10);
+
+  return Array.from(
+    { length: end - start + 1 },
+    (_, index) => String(start + index).padStart(2, '0')
+  );
+}
+
+export { validateYear, validateMonth, createMonthRange };

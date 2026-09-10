@@ -2,8 +2,9 @@
 import inquirer from 'inquirer';
 import dotenv from 'dotenv';
 import { validateCNPJ } from './validateCNPJ.js';
-import { validateYear, validateMonth } from './validateDate.js';
+import { validateYear, validateMonth, createMonthRange } from './validateDate.js';
 import { scraping } from './scraping.js';
+import { logger } from './loggers.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -16,8 +17,7 @@ async function main() {
   console.log('\x1b[36m', '**************************', '\x1b[0m');
   console.log('');
   const d = new Date();
-  inquirer
-  .prompt([
+  const answers = await inquirer.prompt([
     {
       type: "list",
       name: "headless",
@@ -55,23 +55,46 @@ async function main() {
     },
     {
       type: 'input',
-      name: 'month',
-      message: 'Informe o mês:',
-      default: ("0" + (d.getMonth())).slice(-2),
+      name: 'startMonth',
+      message: 'Informe o mês inicial:',
+      default: '01',
       validate(value) {
         const valid = validateMonth(value);
         return valid[0] || valid[1];
       },
       filter(answers) {
-        return answers.toString();
+        return answers.toString().padStart(2, '0');
       }
     },
-  ])
-  .then((answers) => {
-    scraping(answers);
-  });
+    {
+      type: 'input',
+      name: 'endMonth',
+      message: 'Informe o mês final:',
+      default: String(Math.max(1, d.getMonth())).padStart(2, '0'),
+      validate(value, currentAnswers) {
+        const valid = validateMonth(value);
+        if (!valid[0]) return valid[1];
+        if (parseInt(value, 10) < parseInt(currentAnswers.startMonth, 10)) {
+          return 'O mês final precisa ser igual ou posterior ao mês inicial.';
+        }
+        return true;
+      },
+      filter(answers) {
+        return answers.toString().padStart(2, '0');
+      }
+    },
+  ]);
+
+  const months = createMonthRange(answers.startMonth, answers.endMonth);
+  logger.info(`Período selecionado: ${months.join(', ')}/${answers.year}`);
+
+  const result = await scraping({ ...answers, months });
+  if (!result[0]) process.exitCode = 1;
 
 }
 
-main();
+main().catch((error) => {
+  logger.error(`Erro inesperado: ${error.message}`);
+  process.exitCode = 1;
+});
 
