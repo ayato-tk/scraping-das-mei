@@ -1,6 +1,6 @@
 // ─── IMPORTANTE ──────────────────────────────────────────────────────────────
 // Execute usando:
-// REBROWSER_PATCHES_RUNTIME_FIX_MODE=addBinding node ./bin/index.js
+// npm start
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { addExtra } from 'puppeteer-extra';
@@ -22,11 +22,26 @@ const TIMEOUT_NAV = 40_000;
 const TIMEOUT_SEL = 20_000;
 
 function getSystemChromePath() {
+  const configuredPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (configuredPath && fs.existsSync(configuredPath)) return configuredPath;
+
   switch (process.platform) {
     case 'darwin':
       return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-    case 'win32':
-      return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    case 'win32': {
+      const candidates = [
+        process.env.PROGRAMFILES && path.join(process.env.PROGRAMFILES, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        process.env['PROGRAMFILES(X86)'] && path.join(process.env['PROGRAMFILES(X86)'], 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      ].filter(Boolean);
+
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      throw new Error(
+        'Google Chrome não encontrado. Instale-o ou defina PUPPETEER_EXECUTABLE_PATH no arquivo .env.'
+      );
+    }
     default:
       for (const p of ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']) {
         if (fs.existsSync(p)) return p;
@@ -186,7 +201,8 @@ async function waitForAnyNewPdf(downloadPath, maxWait = 40_000, poll = 500) {
 // ─── Função principal ─────────────────────────────────────────────────────────
 
 async function scraping(answers) {
-  const { cnpj, month, year, headless = false } = answers;
+  const { cnpj, year, headless = false } = answers;
+  const months = answers.months?.length ? answers.months : [answers.month];
 
   if (!fs.existsSync(DOWNLOAD_PATH)) fs.mkdirSync(DOWNLOAD_PATH, { recursive: true });
 
@@ -199,6 +215,7 @@ async function scraping(answers) {
   }
 
   const selectedHeadlessMode = headless ? 'new' : false;
+  const isWindows = process.platform === 'win32';
 
   const browser = await puppeteer.launch({
     headless: selectedHeadlessMode,
@@ -217,7 +234,7 @@ async function scraping(answers) {
       '--disable-pdf-viewer',
       '--disable-plugins-discovery',
       '--window-size=1366,768',
-      `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36`,
+      `--user-agent=Mozilla/5.0 (${isWindows ? 'Windows NT 10.0; Win64; x64' : 'Macintosh; Intel Mac OS X 10_15_7'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36`,
     ],
     defaultViewport: { width: 1366, height: 768 },
     ignoreHTTPSErrors: true,
@@ -232,7 +249,7 @@ async function scraping(answers) {
       'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
       'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
       'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"macOS"',
+      'sec-ch-ua-platform': isWindows ? '"Windows"' : '"macOS"',
     });
 
     const cdp = await page.target().createCDPSession();
@@ -313,11 +330,13 @@ async function scraping(answers) {
       return [false, bannerAno];
     }
 
-    // Stage 5 — Selecionar mês e emitir
-    logger.info(`Stage 5: Selecionando o mês ${month}...`);
-    const periodoSeletor = `[value="${year}${month}"]`;
-    await page.waitForSelector(periodoSeletor, { timeout: TIMEOUT_SEL, visible: true });
-    await page.click(periodoSeletor);
+    // Stage 5 — Selecionar todos os meses do intervalo e emitir em lote
+    logger.info(`Stage 5: Selecionando os meses ${months.join(', ')}...`);
+    for (const month of months) {
+      const periodoSeletor = `[value="${year}${month}"]`;
+      await page.waitForSelector(periodoSeletor, { timeout: TIMEOUT_SEL, visible: true });
+      await page.click(periodoSeletor);
+    }
 
     logger.info('Stage 5: Emitindo o DAS...');
     await page.evaluate(() => {
@@ -360,7 +379,10 @@ async function scraping(answers) {
     }
 
     // Definição do caminho final do arquivo (NOME PADRONIZADO)
-    const finalFileName = `DAS-${cnpj.replace(/\D/g,'')}-${month}-${year}.pdf`;
+    const monthLabel = months.length === 1
+      ? months[0]
+      : `${months[0]}-a-${months.at(-1)}`;
+    const finalFileName = `DAS-${cnpj.replace(/\D/g,'')}-${monthLabel}-${year}.pdf`;
     const finalFilePath = path.join(DOWNLOAD_PATH, finalFileName);
 
     // Captura o estado antes de qualquer clique (nome e mtime)
